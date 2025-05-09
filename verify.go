@@ -27,9 +27,9 @@ func countAdd(i int) {
 	mux2.Unlock()
 
 }
-func countDel() {
+func countDel(pi *ProxyIp) {
 	mux2.Lock()
-	fmt.Printf("\r代理验证中: %d     ", count)
+	fmt.Printf("\r代理验证中: %d  成功:%d   ", count, pi.SuccessNum)
 	count--
 	mux2.Unlock()
 
@@ -37,7 +37,7 @@ func countDel() {
 func Verify(pi *ProxyIp, wg *sync.WaitGroup, ch chan int, first bool) {
 	defer func() {
 		wg.Done()
-		countDel()
+		countDel(pi)
 		<-ch
 	}()
 	pr := pi.Ip + ":" + pi.Port
@@ -130,17 +130,18 @@ func VerifyHttp(pr string) bool {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	tr.Proxy = http.ProxyURL(proxyUrl)
-	client := http.Client{Timeout: 10 * time.Second, Transport: &tr}
-	request, err := http.NewRequest("GET", "http://baidu.com", nil)
+	client := http.Client{Timeout: time.Duration(conf.Config.VerifyTimeout) * time.Second, Transport: &tr}
+	request, err := http.NewRequest("GET", conf.Config.VerifyWeb, nil)
 	//处理返回结果
 	res, err := client.Do(request)
 	if err != nil {
 		return false
 	}
 	defer res.Body.Close()
-	dataBytes, _ := io.ReadAll(res.Body)
-	result := string(dataBytes)
-	if strings.Contains(result, "0;url=http://www.baidu.com") {
+	// dataBytes, _ := io.ReadAll(res.Body)
+	// result := string(dataBytes)
+	if res.StatusCode == 200 {
+		// if strings.Contains(result, "0;url=http://www.google.com") {
 		return true
 	}
 	return false

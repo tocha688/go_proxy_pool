@@ -16,19 +16,24 @@ config:
   #隧道代理更换时间秒
   tunnelTime: 60
   #可用IP数量小于‘proxyNum’时就去抓取
-  proxyNum: 30
+  proxyNum: 100
+  #抓取间隔秒
+  # proxyTime: 1800
   #代理IP验证间隔秒
   verifyTime: 1800
+  verifyWeb: "https://api1.ip.network/api/json"
+  #验证超时时间秒
+  verifyTimeout: 10
   #抓取/检测状态线程数
-  threadNum: 200
+  threadNum: 500
 
 #ip源
 spider:
   - name: "proxyscrape"
     method: "GET"
     urls:
-      - "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=text"
-      - "https://github.com/proxifly/free-proxy-list/raw/refs/heads/main/proxies/protocols/http/data.txt"
+      - https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=text
+      # - https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/protocols/http/data.txt
     ip: '(\d+?\.\d+?.\d+?\.\d+?):\d+'
     port: '\d+?\.\d+?.\d+?\.\d+?:(\d+)'
 
