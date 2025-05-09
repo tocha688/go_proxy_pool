@@ -9,6 +9,7 @@ import (
 )
 
 func printTime(key string, t time.Time) {
+	return
 	// 计算时间差
 	tc := time.Since(t)
 	if tc > time.Second*3 {

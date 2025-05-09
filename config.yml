@@ -23,9 +23,9 @@ config:
   verifyTime: 1800
   verifyWeb: "http://httpbin.org/get"
   #验证超时时间秒
-  verifyTimeout: 1
+  verifyTimeout: 2
   #抓取/检测状态线程数
-  threadNum: 500
+  threadNum: 1000
 
 #ip源
 spider:
@@ -40,9 +40,9 @@ spider:
       - https://cdn.jsdelivr.net/gh/r00tee/Proxy-List/Https.txt
       - https://cdn.jsdelivr.net/gh/trio666/proxy-checker/http.txt
       - https://cdn.jsdelivr.net/gh/MuRongPIG/Proxy-Master/http.txt
-      - https://cdn.jsdelivr.net/gh/Zaeem20/FREE_PROXIES_LIST/blob/master/http.txt
+      - https://cdn.jsdelivr.net/gh/Zaeem20/FREE_PROXIES_LIST/http.txt
       - https://cdn.jsdelivr.net/gh/vmheaven/VMHeaven-Free-Proxy-Updated/http.txt
-      - https://cdn.jsdelivr.net/gh/databay-labs/free-proxy-list/blob/master/http.txt
+      - https://cdn.jsdelivr.net/gh/databay-labs/free-proxy-list/http.txt
     ip: '(\d+?\.\d+?.\d+?\.\d+?):\d+'
     port: '\d+?\.\d+?.\d+?\.\d+?:(\d+)'
 
