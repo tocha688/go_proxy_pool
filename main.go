@@ -21,8 +21,8 @@ func main() {
 		"\n<___'                        <___'                  ")
 	InitData()
 	//开启隧道代理
-	go httpSRunTunnelProxyServer()
-	go socket5RunTunnelProxyServer()
+	// go httpSRunTunnelProxyServer()
+	// go socket5RunTunnelProxyServer()
 	//启动webAPi
 	Run()
 }
@@ -35,7 +35,7 @@ func InitData() {
 	ch1 = make(chan int, conf.Config.ThreadNum)
 	ch2 = make(chan int, conf.Config.ThreadNum)
 	//是否需要抓代理
-	if len(ProxyPool) < conf.Config.ProxyNum {
+	if ProxyPool.Len() < conf.Config.ProxyNum {
 		//抓取代理
 		spiderRun()
 	}
@@ -44,7 +44,7 @@ func InitData() {
 		// 每 60 秒钟时执行一次
 		ticker := time.NewTicker(60 * time.Second)
 		for range ticker.C {
-			if len(ProxyPool) < conf.Config.ProxyNum {
+			if ProxyPool.Len() < conf.Config.ProxyNum {
 				if !run && !verifyIS {
 					log.Printf("代理数量不足 %d\n", conf.Config.ProxyNum)
 					//抓取代理
@@ -58,17 +58,17 @@ func InitData() {
 	}()
 
 	//定时更换隧道IP
-	go func() {
-		tunnelTime := time.Duration(conf.Config.TunnelTime)
-		ticker := time.NewTicker(tunnelTime * time.Second)
-		for range ticker.C {
-			if len(ProxyPool) != 0 {
-				httpsIp = getHttpsIp()
-				httpIp = gethttpIp()
-				socket5Ip = getSocket5Ip()
-			}
-		}
-	}()
+	// go func() {
+	// 	tunnelTime := time.Duration(conf.Config.TunnelTime)
+	// 	ticker := time.NewTicker(tunnelTime * time.Second)
+	// 	for range ticker.C {
+	// 		if ProxyPool.Len() != 0 {
+	// 			httpsIp = getHttpsIp()
+	// 			httpIp = gethttpIp()
+	// 			socket5Ip = getSocket5Ip()
+	// 		}
+	// 	}
+	// }()
 
 	// 验证代理存活情况
 	go func() {

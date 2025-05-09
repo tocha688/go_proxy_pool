@@ -142,7 +142,7 @@ func export() {
 	defer mux1.Unlock()
 	//导出代理到文件
 	err := os.Truncate("data.json", 0)
-	if len(ProxyPool) == 0 {
+	if ProxyPool.Len() == 0 {
 		return
 	}
 	if err != nil {

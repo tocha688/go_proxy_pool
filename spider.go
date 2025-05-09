@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"log"
 	"net/url"
-	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -12,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/elliotchance/orderedmap/v3"
 	"github.com/imroc/req/v3"
 )
 
@@ -47,14 +46,14 @@ func spiderRun() {
 	}
 	wg2.Wait()
 	log.Printf("\r%s 扩展代理抓取结束         \n", time.Now().Format("2006-01-02 15:04:05"))
-	count = 0
-	log.Println("开始文件抓取代理...")
-	for i := range conf.SpiderFile {
-		wg2.Add(1)
-		go spiderFile(&conf.SpiderFile[i])
-	}
-	wg2.Wait()
-	log.Printf("\r%s 文件代理抓取结束         \n", time.Now().Format("2006-01-02 15:04:05"))
+	// count = 0
+	// log.Println("开始文件抓取代理...")
+	// for i := range conf.SpiderFile {
+	// 	wg2.Add(1)
+	// 	go spiderFile(&conf.SpiderFile[i])
+	// }
+	// wg2.Wait()
+	// log.Printf("\r%s 文件代理抓取结束         \n", time.Now().Format("2006-01-02 15:04:05"))
 
 	//导出代理到文件
 	export()
@@ -67,7 +66,7 @@ func spider(sp *Spider) {
 		//log.Printf("%s 结束...",sp.Name)
 	}()
 	//log.Printf("%s 开始...", sp.Name)
-	var pis []ProxyIp
+	pis := orderedmap.NewOrderedMap[string, ProxyIp]()
 	for ui, v := range sp.Urls {
 		page := 0
 		client := req.C().
@@ -112,15 +111,9 @@ func spider(sp *Spider) {
 				var _port string
 				_ip, _ = url.QueryUnescape(ip[i][1])
 				_port, _ = url.QueryUnescape(port[i][1])
-				_is := true
-				for pi := range ProxyPool {
-					if ProxyPool[pi].Ip == _ip && ProxyPool[pi].Port == _port {
-						_is = false
-						break
-					}
-				}
-				if _is {
-					pis = append(pis, ProxyIp{Ip: _ip, Port: _port, Source: sp.Name})
+				key := _ip + ":" + _port
+				if !ProxyPool.Has(key) && !pis.Has(key) {
+					pis.Set(key, ProxyIp{Ip: _ip, Port: _port, Source: sp.Name})
 				}
 			}
 			if !strings.Contains(v, "{page}") {
@@ -128,12 +121,11 @@ func spider(sp *Spider) {
 			}
 		}
 	}
-	pis = uniquePI(pis)
-	countAdd(len(pis))
-	for i := range pis {
+	countAdd(pis.Len())
+	for v := range pis.Values() {
 		wg.Add(1)
 		ch2 <- 1
-		go Verify(&pis[i], &wg, ch2, true)
+		go Verify(&v, &wg, ch2, true)
 	}
 	wg.Wait()
 
@@ -153,17 +145,10 @@ func spiderPlugin(spp *SpiderPlugin) {
 	if err != nil {
 		log.Println("失败", spp.Name, err)
 	} else {
-		_is := true
 		line := strings.Split(string(buf), ",")
 		for i := range line {
-			split := strings.Split(line[i], ":")
-			for pi := range ProxyPool {
-				if ProxyPool[pi].Ip == split[0] && ProxyPool[pi].Port == split[1] {
-					_is = false
-					break
-				}
-			}
-			if _is {
+			if !ProxyPool.Has(line[i]) {
+				split := strings.Split(line[i], ":")
 				pis = append(pis, ProxyIp{Ip: split[0], Port: split[1], Source: spp.Name})
 			}
 		}
@@ -196,43 +181,43 @@ func spiderPlugin(spp *SpiderPlugin) {
 	wg.Wait()
 }
 
-func spiderFile(spp *SpiderFile) {
-	defer func() {
-		wg2.Done()
-	}()
-	var pis []ProxyIp
-	fi, err := os.Open(spp.Path)
-	if err != nil {
-		log.Println(spp.Name, "失败", err)
-		return
-	}
-	r := bufio.NewReader(fi) // 创建 Reader
-	for {
-		_is := true
-		line, err := r.ReadBytes('\n')
-		if len(line) > 0 {
-			split := strings.Split(strings.TrimSpace(string(line)), ":")
-			for pi := range ProxyPool {
-				if ProxyPool[pi].Ip == split[0] && ProxyPool[pi].Port == split[1] {
-					_is = false
-					break
-				}
-			}
-			if _is {
-				pis = append(pis, ProxyIp{Ip: split[0], Port: split[1], Source: spp.Name})
-			}
-		}
-		if err != nil {
-			break
-		}
-	}
-	pis = uniquePI(pis)
-	countAdd(len(pis))
-	for i := range pis {
-		wg.Add(1)
-		ch2 <- 1
-		go Verify(&pis[i], &wg, ch2, true)
-	}
-	wg.Wait()
+// func spiderFile(spp *SpiderFile) {
+// 	defer func() {
+// 		wg2.Done()
+// 	}()
+// 	var pis []ProxyIp
+// 	fi, err := os.Open(spp.Path)
+// 	if err != nil {
+// 		log.Println(spp.Name, "失败", err)
+// 		return
+// 	}
+// 	r := bufio.NewReader(fi) // 创建 Reader
+// 	for {
+// 		_is := true
+// 		line, err := r.ReadBytes('\n')
+// 		if len(line) > 0 {
+// 			split := strings.Split(strings.TrimSpace(string(line)), ":")
+// 			// for pi := range ProxyPool {
+// 			// 	if ProxyPool[pi].Ip == split[0] && ProxyPool[pi].Port == split[1] {
+// 			// 		_is = false
+// 			// 		break
+// 			// 	}
+// 			// }
+// 			if _is {
+// 				pis = append(pis, ProxyIp{Ip: split[0], Port: split[1], Source: spp.Name})
+// 			}
+// 		}
+// 		if err != nil {
+// 			break
+// 		}
+// 	}
+// 	pis = uniquePI(pis)
+// 	countAdd(len(pis))
+// 	for i := range pis {
+// 		wg.Add(1)
+// 		ch2 <- 1
+// 		go Verify(&pis[i], &wg, ch2, true)
+// 	}
+// 	wg.Wait()
 
-}
+// }

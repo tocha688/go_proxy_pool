@@ -22,8 +22,8 @@ config:
   #代理IP验证间隔秒
   verifyTime: 1800
   verifyWeb: "http://httpbin.org/get"
-  #验证超时时间毫秒
-  verifyTimeout: 200
+  #验证超时时间秒
+  verifyTimeout: 1
   #抓取/检测状态线程数
   threadNum: 200
 
