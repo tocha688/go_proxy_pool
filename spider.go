@@ -67,9 +67,8 @@ func spider(sp *Spider) {
 		//log.Printf("%s 结束...",sp.Name)
 	}()
 	//log.Printf("%s 开始...", sp.Name)
-	urls := strings.Split(sp.Urls, ",")
 	var pis []ProxyIp
-	for ui, v := range urls {
+	for ui, v := range sp.Urls {
 		page := 0
 		client := req.C().
 			SetCommonHeaders(sp.Headers).
