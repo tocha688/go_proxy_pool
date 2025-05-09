@@ -25,7 +25,7 @@ config:
   #验证超时时间秒
   verifyTimeout: 1
   #抓取/检测状态线程数
-  threadNum: 200
+  threadNum: 500
 
 #ip源
 spider:
@@ -34,16 +34,25 @@ spider:
     urls:
       - https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=text
       - https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/protocols/http/data.txt
+      - https://cdn.jsdelivr.net/gh/BreakingTechFr/Proxy_Free/proxies/http.txt
+      - https://cdn.jsdelivr.net/gh/officialputuid/KangProxy/http/http.txt
+      - https://cdn.jsdelivr.net/gh/dpangestuw/Free-Proxy/http_proxies.txt
+      - https://cdn.jsdelivr.net/gh/r00tee/Proxy-List/Https.txt
+      - https://cdn.jsdelivr.net/gh/trio666/proxy-checker/http.txt
+      - https://cdn.jsdelivr.net/gh/MuRongPIG/Proxy-Master/http.txt
+      - https://cdn.jsdelivr.net/gh/Zaeem20/FREE_PROXIES_LIST/blob/master/http.txt
+      - https://cdn.jsdelivr.net/gh/vmheaven/VMHeaven-Free-Proxy-Updated/http.txt
+      - https://cdn.jsdelivr.net/gh/databay-labs/free-proxy-list/blob/master/http.txt
     ip: '(\d+?\.\d+?.\d+?\.\d+?):\d+'
     port: '\d+?\.\d+?.\d+?\.\d+?:(\d+)'
 
-  - name: "proxy代理"
-    method: "GET"
-    urls:
-      - "https://www.us-proxy.org/"
-      - "https://www.socks-proxy.net/"
-    ip: '(\d+?\.\d+?.\d+?\.\d+?):\d+'
-    port: '\d+?\.\d+?.\d+?\.\d+?:(\d+)'
+  # - name: "proxy代理"
+  #   method: "GET"
+  #   urls:
+  #     - "https://www.us-proxy.org/"
+  #     - "https://www.socks-proxy.net/"
+  #   ip: '(\d+?\.\d+?.\d+?\.\d+?):\d+'
+  #   port: '\d+?\.\d+?.\d+?\.\d+?:(\d+)'
   #   proxy: true
 #通过插件，扩展ip源
 #spiderPlugin:

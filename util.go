@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/elliotchance/orderedmap/v3"
 )
 
 func printTime(key string, t time.Time) {
@@ -12,4 +14,13 @@ func printTime(key string, t time.Time) {
 	if tc > time.Second*3 {
 		log.Printf("运行过长:%s - %s\n", key, fmt.Sprintf("%s", tc))
 	}
+}
+
+// 直接获取所有值的切片
+func GetValuesSlice(om *orderedmap.OrderedMap[string, ProxyIp]) []ProxyIp {
+	values := make([]ProxyIp, 0, om.Len())
+	for value := range om.Values() {
+		values = append(values, value)
+	}
+	return values
 }

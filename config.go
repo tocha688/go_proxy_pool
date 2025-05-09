@@ -121,12 +121,16 @@ func GetConfigData() {
 	if len(all) == 0 {
 		return
 	}
-	err = json.Unmarshal(all, &ProxyPool)
+	var proxys []ProxyIp
+	err = json.Unmarshal(all, &proxys)
 	if err != nil {
 		log.Println("代理json解析错误：" + err.Error())
 		return
 	}
 
+	for _, r := range proxys {
+		ProxyPool.Set(r.Ip+":"+r.Port, r)
+	}
 }
 
 // 处理Headers配置
@@ -156,7 +160,7 @@ func export() {
 	}
 	defer file.Close()
 
-	data, err := json.Marshal(ProxyPool)
+	data, err := json.Marshal(GetValuesSlice(ProxyPool))
 	if err != nil {
 		log.Printf("代理json化失败：%s", err)
 		return
