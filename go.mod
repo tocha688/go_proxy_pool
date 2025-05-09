@@ -42,6 +42,9 @@ require (
 	github.com/quic-go/quic-go v0.51.0 // indirect
 	github.com/refraction-networking/utls v1.7.1 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect

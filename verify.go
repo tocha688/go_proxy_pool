@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -12,108 +13,51 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/imroc/req/v3"
+	"github.com/tidwall/gjson"
+	"resty.dev/v3"
 )
 
 var verifyIS = false
 var ProxyPool []ProxyIp
 var lock sync.Mutex
 var mux2 sync.Mutex
+var mux3 sync.Mutex
 
 var count int
+var checkCount int
+
+func checkAdd(i int) {
+	mux3.Lock()
+	checkCount += i
+	mux3.Unlock()
+}
 
 func countAdd(i int) {
 	mux2.Lock()
 	count += i
 	mux2.Unlock()
-
 }
 func countDel(pi *ProxyIp) {
 	mux2.Lock()
-	fmt.Printf("\r代理验证中: %d  成功:%d   ", count, pi.SuccessNum)
+	fmt.Printf("\r代理验证中: %d  成功:%d  验证中:%d ", count, len(ProxyPool), checkCount)
 	count--
 	mux2.Unlock()
-
 }
 func Verify(pi *ProxyIp, wg *sync.WaitGroup, ch chan int, first bool) {
+	checkAdd(1)
 	defer func() {
 		wg.Done()
 		countDel(pi)
+		checkAdd(-1)
 		<-ch
 	}()
-	pr := pi.Ip + ":" + pi.Port
 	//是抓取验证，还是验证代理池内IP
-	startT := time.Now()
-	if first {
-		if VerifyHttps(pr) {
-			pi.Type = "HTTPS"
-		} else if VerifyHttp(pr) {
-			pi.Type = "HTTP"
-
-		} else if VerifySocket5(pr) {
-			pi.Type = "SOCKET5"
-		} else {
+	err := VerifyAllV3(pi)
+	if err == nil {
+		if !first {
 			return
-		}
-		tc := time.Since(startT)
-		pi.Time = time.Now().Format("2006-01-02 15:04:05")
-		pi.Speed = fmt.Sprintf("%s", tc)
-		anonymity := Anonymity(pi, 0)
-		if anonymity == "" {
-			return
-		}
-		pi.Anonymity = anonymity
-	} else {
-		pi.RequestNum++
-		if pi.Type == "HTTPS" {
-			if VerifyHttps(pr) {
-				pi.SuccessNum++
-			}
-		} else if pi.Type == "HTTP" {
-			if VerifyHttp(pr) {
-				pi.SuccessNum++
-			}
-		} else if pi.Type == "SOCKET5" {
-			if VerifySocket5(pr) {
-				pi.SuccessNum++
-			}
-		}
-		tc := time.Since(startT)
-		pi.Time = time.Now().Format("2006-01-02 15:04:05")
-		pi.Speed = fmt.Sprintf("%s", tc)
-		return
-	}
-	tr := http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := http.Client{Timeout: 15 * time.Second, Transport: &tr}
-	//处理返回结果
-	res, err := client.Get("https://searchplugin.csdn.net/api/v1/ip/get?ip=" + pi.Ip)
-	if err != nil {
-		res, err = client.Get("https://searchplugin.csdn.net/api/v1/ip/get?ip=" + pi.Ip)
-		if err != nil {
-			return
-		}
-	}
-	defer res.Body.Close()
-	dataBytes, _ := io.ReadAll(res.Body)
-	result := string(dataBytes)
-	address := regexp.MustCompile("\"address\":\"(.+?)\",").FindAllStringSubmatch(result, -1)
-	if len(address) != 0 {
-		addresss := removeDuplication_map(strings.Split(address[0][1], " "))
-		le := len(addresss)
-		pi.Isp = strings.Split(addresss[le-1], "/")[0]
-		for i := range addresss {
-			if i == le-1 {
-				break
-			}
-			switch i {
-			case 0:
-				pi.Country = addresss[0]
-			case 1:
-				pi.Province = addresss[1]
-			case 2:
-				pi.City = addresss[2]
-			}
 		}
 	}
 
@@ -232,6 +176,156 @@ func Anonymity(pr *ProxyIp, c int) string {
 		return "普匿"
 	}
 	return "高匿"
+}
+func VerifyAllV3(pi *ProxyIp) (err error) {
+	timeout := time.Duration(conf.Config.VerifyTimeout) * time.Millisecond
+	client := resty.New().
+		SetHeaders(map[string]string{
+			"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
+		}).
+		SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}).
+		//只请求一次不保持连接
+		SetTimeout(timeout)
+	startTime := time.Now()
+	defer func() {
+		client.Close()
+		//计算请求时间
+		tc := time.Since(startTime)
+		pi.Time = time.Now().Format("2006-01-02 15:04:05")
+		pi.Speed = fmt.Sprintf("%s", tc)
+		// if tc > timeout {
+		// 	if err != nil {
+		// 		log.Println(pi.Ip + " - " + pi.Speed + " Error: " + err.Error())
+		// 	} else {
+		// 		log.Println(pi.Ip + " - " + pi.Speed)
+		// 	}
+		// }
+	}()
+	if pi.Type == "" {
+		pi.Type = "http"
+	}
+	proxy := pi.Type + "://" + pi.Ip + ":" + pi.Port
+	client.SetProxy(proxy)
+
+	//处理返回结果
+	//https://api1.ip.network/api/json
+	//https://demo.ip-api.com/json/?fields=66842623&lang=en
+	//
+	// res, err := req.R().SetRetryCount(0).Get("https://www.baidu.com")
+	res, err := req.R().SetRetryCount(0).Get("https://api1.ip.network/api/json")
+	if err != nil {
+		// log.Println(pi.Ip + " - " + err.Error())
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode >= 400 {
+		return errors.New("Request Error. " + res.Status)
+	}
+	// log.Println(res.StatusCode)
+	result := res.String()
+	pi.Country = gjson.Get(result, "country").String()
+	pi.Province = gjson.Get(result, "region").String()
+	pi.City = gjson.Get(result, "city").String()
+	pi.Isp = gjson.Get(result, "meta.isp").String()
+	return nil
+}
+func VerifyAllV2(pi *ProxyIp) (err error) {
+	timeout := time.Duration(conf.Config.VerifyTimeout) * time.Millisecond
+	client := req.C().
+		ImpersonateChrome().
+		EnableInsecureSkipVerify().
+		DisableKeepAlives().
+		// SetDial(func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// 	dialer := net.Dialer{
+		// 		Timeout: time.Duration(conf.Config.VerifyTimeout) * time.Second,
+		// 	}
+		// 	return dialer.Dial(network, addr)
+		// }).
+		SetTimeout(timeout)
+	// client.SetIdleConnTimeout(time.Duration(conf.Config.VerifyTimeout) * time.Second)
+	// client.SetExpectContinueTimeout(time.Duration(conf.Config.VerifyTimeout) * time.Second)
+	// client.SetHTTP2PingTimeout(time.Duration(conf.Config.VerifyTimeout) * time.Second)
+	// client.SetTLSHandshakeTimeout(time.Duration(conf.Config.VerifyTimeout) * time.Second)
+	// client.SetHTTP2ReadIdleTimeout(time.Duration(conf.Config.VerifyTimeout) * time.Second)
+	// client.SetHTTP2WriteByteTimeout(time.Duration(conf.Config.VerifyTimeout) * time.Second)
+	// client.SetResponseHeaderTimeout(time.Duration(conf.Config.VerifyTimeout) * time.Second)
+	startTime := time.Now()
+	defer func() {
+		//计算请求时间
+		tc := time.Since(startTime)
+		pi.Time = time.Now().Format("2006-01-02 15:04:05")
+		pi.Speed = fmt.Sprintf("%s", tc)
+		if tc > timeout {
+			if err != nil {
+				log.Println(pi.Ip + " - " + pi.Speed + " Error: " + err.Error())
+			} else {
+				log.Println(pi.Ip + " - " + pi.Speed)
+			}
+		}
+	}()
+	if pi.Type == "" {
+		pi.Type = "http"
+	}
+	proxy := pi.Type + "://" + pi.Ip + ":" + pi.Port
+	client.SetProxyURL(proxy)
+
+	//处理返回结果
+	//https://api1.ip.network/api/json
+	//https://demo.ip-api.com/json/?fields=66842623&lang=en
+	//
+	res, err := req.R().SetRetryCount(0).Get("https://www.baidu.com")
+	// res, err := req.R().SetRetryCount(0).Get("https://api1.ip.network/api/json")
+	if err != nil {
+		// log.Println(pi.Ip + " - " + err.Error())
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode >= 400 {
+		return errors.New("Request Error. " + res.Status)
+	}
+	// log.Println(res.StatusCode)
+	result := res.String()
+	pi.Country = gjson.Get(result, "country").String()
+	pi.Province = gjson.Get(result, "region").String()
+	pi.City = gjson.Get(result, "city").String()
+	pi.Isp = gjson.Get(result, "meta.isp").String()
+	return nil
+}
+func VerifyAll(pr string) (string, error) {
+	proxy := pr
+	client := req.C().
+		ImpersonateChrome().
+		EnableInsecureSkipVerify().
+		DisableKeepAlives().
+		SetTimeout(time.Duration(conf.Config.VerifyTimeout) * time.Second)
+	if strings.Contains(proxy, "http://") ||
+		strings.Contains(proxy, "https://") ||
+		strings.Contains(proxy, "socks://") ||
+		strings.Contains(proxy, "socks5://") {
+		client.SetProxyURL(pr)
+	} else {
+		client.SetProxyURL("http://" + pr)
+	}
+
+	//处理返回结果
+	res, err := req.R().Get("http://httpbin.org/get")
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	if res.StatusCode >= 400 {
+		return "", errors.New("Request Error. " + res.Status)
+	}
+	// log.Println(res.StatusCode)
+	result := res.String()
+	origin := regexp.MustCompile("(\\d+?\\.\\d+?.\\d+?\\.\\d+?,.+\\d+?\\.\\d+?.\\d+?\\.\\d+?)").FindAllStringSubmatch(result, -1)
+	if len(origin) != 0 {
+		return "透明", nil
+	}
+	if strings.Contains(result, "keep-alive") {
+		return "普匿", nil
+	}
+	return "高匿", nil
 }
 
 func PIAdd(pi *ProxyIp) {

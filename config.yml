@@ -22,10 +22,10 @@ config:
   #代理IP验证间隔秒
   verifyTime: 1800
   verifyWeb: "http://httpbin.org/get"
-  #验证超时时间秒
-  verifyTimeout: 10
+  #验证超时时间毫秒
+  verifyTimeout: 200
   #抓取/检测状态线程数
-  threadNum: 500
+  threadNum: 200
 
 #ip源
 spider:
@@ -33,7 +33,7 @@ spider:
     method: "GET"
     urls:
       - https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=text
-      # - https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/protocols/http/data.txt
+      - https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/protocols/http/data.txt
     ip: '(\d+?\.\d+?.\d+?\.\d+?):\d+'
     port: '\d+?\.\d+?.\d+?\.\d+?:(\d+)'
 
