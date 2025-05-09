@@ -21,7 +21,7 @@ config:
   # proxyTime: 1800
   #代理IP验证间隔秒
   verifyTime: 1800
-  verifyWeb: "https://api1.ip.network/api/json"
+  verifyWeb: "http://httpbin.org/get"
   #验证超时时间秒
   verifyTimeout: 10
   #抓取/检测状态线程数
