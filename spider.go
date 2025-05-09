@@ -2,17 +2,17 @@ package main
 
 import (
 	"bufio"
-	"crypto/tls"
-	"io"
 	"log"
-	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/imroc/req/v3"
 )
 
 var wg sync.WaitGroup
@@ -70,48 +70,62 @@ func spider(sp *Spider) {
 	urls := strings.Split(sp.Urls, ",")
 	var pis []ProxyIp
 	for ui, v := range urls {
-		if ui != 0 {
-			time.Sleep(time.Duration(sp.Interval) * time.Second)
-		}
-		tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
-		if sp.ProxyIs {
-			proxyUrl, parseErr := url.Parse("http://" + conf.Proxy.Host + ":" + conf.Proxy.Port)
-			if parseErr != nil {
-				log.Println("代理地址错误: \n" + parseErr.Error())
-				continue
+		page := 0
+		client := req.C().
+			SetCommonHeaders(sp.Headers).
+			ImpersonateChrome().
+			// SetTLSFingerprint(utls.HelloChrome_131).
+			// SetAutoDecodeAllContentType(). //.EnableAutoDecode().
+			// DevMode().
+			SetTimeout(20 * time.Second)
+		for {
+			page++
+			if ui != 0 {
+				time.Sleep(time.Duration(sp.Interval) * time.Second)
 			}
-			tr.Proxy = http.ProxyURL(proxyUrl)
-		}
-		client := http.Client{Timeout: 20 * time.Second, Transport: tr}
-		request, _ := http.NewRequest(sp.Method, v, strings.NewReader(sp.Body))
-		//设置请求头
-		SetHeadersConfig(sp.Headers, &request.Header)
-		//处理返回结果
-		res, err := client.Do(request)
-		if err != nil {
-			continue
-		}
-		dataBytes, _ := io.ReadAll(res.Body)
-		result := string(dataBytes)
-		ip := regexp.MustCompile(sp.Ip).FindAllStringSubmatch(result, -1)
-		port := regexp.MustCompile(sp.Port).FindAllStringSubmatch(result, -1)
-		if len(ip) == 0 {
-			continue
-		}
-		for i := range ip {
-			var _ip string
-			var _port string
-			_ip, _ = url.QueryUnescape(ip[i][1])
-			_port, _ = url.QueryUnescape(port[i][1])
-			_is := true
-			for pi := range ProxyPool {
-				if ProxyPool[pi].Ip == _ip && ProxyPool[pi].Port == _port {
-					_is = false
+
+			if sp.ProxyIs {
+				proxyUrl, parseErr := url.Parse("http://" + conf.Proxy.Host + ":" + conf.Proxy.Port)
+				if parseErr != nil {
+					log.Println("代理地址错误: \n" + parseErr.Error())
 					break
 				}
+				client.SetProxyURL(proxyUrl.String())
 			}
-			if _is {
-				pis = append(pis, ProxyIp{Ip: _ip, Port: _port, Source: sp.Name})
+			//替换
+			ul := strings.Replace(v, "{page}", strconv.Itoa(page), -1)
+			//处理返回结果
+			// res, err := client.R().SetMethod(sp.Method).SetURL(ul).Send()
+			res, err := client.R().Send(sp.Method, ul)
+			if err != nil {
+				break
+			}
+			result := res.String()
+			// fmt.Println(result)
+			ip := regexp.MustCompile(sp.Ip).FindAllStringSubmatch(result, -1)
+			port := regexp.MustCompile(sp.Port).FindAllStringSubmatch(result, -1)
+			log.Println(page, "抓取到", len(ip), "/", len(port), "个代理")
+			if len(ip) == 0 || len(ip) != len(port) {
+				break
+			}
+			for i := range ip {
+				var _ip string
+				var _port string
+				_ip, _ = url.QueryUnescape(ip[i][1])
+				_port, _ = url.QueryUnescape(port[i][1])
+				_is := true
+				for pi := range ProxyPool {
+					if ProxyPool[pi].Ip == _ip && ProxyPool[pi].Port == _port {
+						_is = false
+						break
+					}
+				}
+				if _is {
+					pis = append(pis, ProxyIp{Ip: _ip, Port: _port, Source: sp.Name})
+				}
+			}
+			if !strings.Contains(v, "{page}") {
+				break
 			}
 		}
 	}

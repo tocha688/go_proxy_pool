@@ -3,11 +3,12 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"gopkg.in/yaml.v3"
 	"io"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/ghodss/yaml"
 )
 
 var conf *Config
@@ -36,7 +37,7 @@ type Spider struct {
 	Body     string            `yaml:"body" json:"body"`
 	ProxyIs  bool              `yaml:"proxy" json:"proxy"`
 	Headers  map[string]string `yaml:"headers" json:"headers"`
-	Urls     string            `yaml:"urls" json:"urls"`
+	Urls     []string          `yaml:"urls" json:"urls"`
 	Ip       string            `yaml:"ip" json:"ip"`
 	Port     string            `yaml:"port" json:"port"`
 }
