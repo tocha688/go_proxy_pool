@@ -43,8 +43,8 @@ func Run() {
 
 	log.Printf("webApi启动 - 监听IP端口 -> %s\n", conf.Config.Ip+":"+conf.Config.Port)
 	r.Run(conf.Config.Ip + ":" + conf.Config.Port)
-
 }
+
 func index(c *gin.Context) {
 	home := Home{Sum: ProxyPool.Len(), Type: make(map[string]int), Anonymity: make(map[string]int), Country: make(map[string]int), Source: make(map[string]int), TunnelProxy: make(map[string]string)}
 	for v := range ProxyPool.Values() {
